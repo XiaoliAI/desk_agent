@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: main/desk-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: main/desk-agent/requirements-ci.txt
+      - name: Install test dependencies
+        run: pip install -r requirements-ci.txt
+      - name: Compile project modules
+        run: python -m compileall -q core/agent core/rag plugins_func/functions api
+      - name: Run tests
+        run: pytest -q
+

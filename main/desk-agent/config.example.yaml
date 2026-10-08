@@ -1,0 +1,140 @@
+# Copy this file to data/.config.yaml and fill in your own values.
+# data/.config.yaml is ignored by Git and must never be committed.
+
+selected_module:
+  LLM: ModelScopeLLM
+  Memory: mem_local_short
+
+Memory:
+  mem_local_short:
+    type: mem_local_short
+    llm: ""
+
+LLM:
+  ModelScopeLLM:
+    type: openai
+    model_name: deepseek-ai/DeepSeek-V4-Pro-0813
+    base_url: https://api-inference.modelscope.cn/v1/
+    api_key: "YOUR_MODELSCOPE_API_KEY"
+    temperature: 0.7
+    max_tokens: 800
+
+plugins:
+  web_search:
+    provider: metaso
+    description: 联网搜索工具。当用户明确需要联网搜索时使用。
+    max_results: 5
+    api_key: "YOUR_SEARCH_API_KEY"
+
+  get_weather:
+    provider: amap
+    api_key: "YOUR_AMAP_API_KEY"
+    default_location: 西安
+
+  open_application:
+    paths:
+      qq: ""
+      wps: ""
+      word: ""
+
+  open_website:
+    preferred_browser: default
+    browsers:
+      edge: ""
+      chrome: ""
+      firefox: ""
+
+  create_file:
+    storage_dir: data/desktop_files
+    max_size_bytes: 1048576
+    allowed_extensions: [".txt", ".md", ".json", ".csv"]
+
+  generate_report:
+    output_dir: data/reports
+    max_word_count: 2000
+    open_after_create: true
+
+  read_file:
+    allowed_directories:
+      - data/desktop_files
+      - data/reports
+    allowed_extensions: [".txt", ".md", ".json", ".csv", ".docx", ".doc"]
+    max_file_size_bytes: 2097152
+    max_chars: 12000
+
+  local_file_search:
+    # Add only directories that Desk Agent is allowed to scan.
+    allowed_directories:
+      - data/desktop_files
+      - data/reports
+      - "C:/Users/YOUR_NAME/Desktop"
+    allowed_extensions:
+      - .txt
+      - .md
+      - .json
+      - .csv
+      - .docx
+      - .doc
+      - .pdf
+      - .xlsx
+      - .xls
+      - .pptx
+      - .jpg
+      - .jpeg
+      - .png
+      - .zip
+    max_results: 10
+    max_file_size_bytes: 52428800
+    scan_timeout_seconds: 8
+    max_scan_files: 20000
+
+  file_email:
+    default_receiver: "YOUR_EMAIL@example.com"
+    smtp_host: smtp.example.com
+    smtp_port: 465
+    smtp_user: "YOUR_EMAIL@example.com"
+    smtp_password: "YOUR_SMTP_AUTH_CODE"
+    max_attachment_size_bytes: 26214400
+
+  remote_api:
+    host: 127.0.0.1
+    port: 8010
+    token: "REPLACE_WITH_A_RANDOM_TOKEN"
+
+  feishu:
+    enabled: false
+    app_id: "YOUR_FEISHU_APP_ID"
+    app_secret: "YOUR_FEISHU_APP_SECRET"
+    local_api_url: http://127.0.0.1:8010/command
+    allowed_open_ids: []
+    agent_websocket_url: ws://127.0.0.1:8000/xiaozhi/v1/
+    agent_timeout_seconds: 120
+    session_idle_seconds: 150
+
+Intent:
+  function_call:
+    functions:
+      - change_role
+      - web_search
+      - get_weather
+      - get_news_from_newsnow
+      - play_music
+      - open_application
+      - open_website
+      - create_file
+      - generate_report
+      - read_file
+      - open_file
+      - create_report_from_file
+      - manage_document_task
+      - search_local_files
+      - prepare_file_email
+      - manage_file_email_task
+      - replace_document_text
+      - search_literature
+      - import_literature
+
+VAD:
+  SileroVAD:
+    min_silence_duration_ms: 900
+

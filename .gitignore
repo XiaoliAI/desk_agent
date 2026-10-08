@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.cursor/
+.claude/
+.DS_Store
+Thumbs.db
+
+# Local environments and caches
+.venv/
+**/.venv/
+venv/
+env/
+.runtime/
+*.egg-info/
+build/
+dist/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+**/data/.config.yaml
+**/data/.secrets.yaml
+**/data/.mcp_server_settings.json
+
+# Desk Agent runtime data
+main/desk-agent/data/*
+!main/desk-agent/data/.gitkeep
+main/desk-agent/tmp/
+main/desk-agent/audio/
+main/desk-agent/**/*.log
+main/desk-agent/**/*.db
+main/desk-agent/**/*.db-*
+main/desk-agent/**/*.sqlite*
+main/desk-agent-ui/wakeword_runtime/logs/
+main/desk-agent-ui/*.log
+# Live2D editor source files are not required by the browser runtime.
+main/desk-agent-ui/resources/**/*.cmo3
+main/desk-agent-ui/resources/**/*.can3
+
+# Large local dependencies and models
+main/desk-agent/models/SenseVoiceSmall/model.pt
+tools/
+*.tar
+*.tar.gz
+*.tar.bz2
+*.zip
+
+# Generated user content
+main/desk-agent/music/
+main/desk-agent/uploadfile/
+main/desk-agent/data/desktop_files/
+main/desk-agent/data/reports/
+main/desk-agent/data/literature/
+
+# Legacy modules from the upstream hardware-oriented project. The public
+# repository is intentionally scoped to Desk Agent and its digital-human UI.
+main/xiaozhi-server/
+main/desk-agent/docker-compose*.yml
+main/desk-agent/config_from_api.yaml
+docs/
+Dockerfile-*
+docker-setup.sh
+.dockerignore
+main/README.md
+main/README_en.md
