@@ -1,16 +1,20 @@
 # Desk Agent
 
-面向个人电脑操作与远程办公场景的多模态桌面智能体。项目基于 Python、LangChain、LangGraph、FastAPI、WebSocket、SQLite、MCP 和 PyMuPDF，统一接入数字人语音/文本、飞书远程指令与本地桌面工具。
+一个能听懂你说话、能远程听你指挥、能直接接管你电脑的桌面智能体。项目面向个人电脑操作与远程办公场景，以 Python、LangChain、LangGraph、FastAPI、WebSocket、SQLite、MCP 与 PyMuPDF 为技术底座，统一接入数字人语音/文本、飞书远程指令与本地桌面工具，构建"感知—理解—决策—执行—回传"的完整智能闭环，实现自然语言驱动的跨端桌面任务自动化。
 
-> 当前主要支持 Windows 10/11 与 Python 3.10。项目可以搜索和修改本地文件、启动应用、生成文档、发送邮件，并导入 PDF 论文进行检索问答。请只配置可信目录，并妥善保管 API Key、SMTP 授权码、飞书密钥和远程 API Token。
+
 
 ## 核心能力
 
-- **Workflow + Agent 混合架构**：邮件发送、文档编辑、报告生成和论文导入等确定性任务由 LangGraph 工作流编排；开放式请求由 Agent 提取参数并选择工具。
-- **意图识别与工具路由**：覆盖桌面操作、文件处理、邮件、文档和文献检索等业务意图，并根据意图动态挂载工具子集。
-- **三层记忆体系**：会话记忆理解上下文，SQLite 任务记忆保存状态和参数，RAG 知识记忆保存论文索引；支持跨轮补参、文件选择、操作确认、断点续接和多任务隔离。
-- **多模态桌面执行**：支持数字人语音/文本和飞书远程控制，可调用应用、网页、文件、文档、邮件等工具。
-- **学术文献 RAG**：支持 PDF 解析、语义分块、论文核心画像、远程 Embedding、Chroma 向量检索、BM25 关键词召回、RRF 名次融合和证据页回补。
+Workflow + Agent 混合编排架构：邮件发送、文档编辑、报告生成与论文导入等确定性任务由 LangGraph 工作流统一编排，保证执行路径稳定可复现；开放式请求交由 Agent 完成语义理解、参数提取与工具自主选择，实现确定性流程与自主决策的有机协同。
+
+分层意图识别与动态工具路由：覆盖桌面操作、文件处理、邮件、文档与文献检索等业务意图，构建分层识别与路由机制，按意图动态挂载工具子集，避免全量工具注入带来的误选与上下文污染。
+
+三层记忆体系：会话记忆承载上下文理解，SQLite 任务记忆持久化任务状态与关键参数，RAG 知识记忆维护论文索引；支持跨轮参数补充、文件选择、操作确认、任务断点续接与多任务上下文隔离，保障长链路任务的连贯性与可靠性。
+
+多模态桌面执行链路：统一接入数字人语音/文本与飞书远程控制两类入口，通过工具链调用应用、网页、文件、文档与邮件等桌面能力，实现本地交互与远程执行的一体化贯通。
+
+学术文献 RAG 检索增强：构建 PDF 解析、语义分块、论文核心画像、远程 Embedding、Chroma 向量检索、BM25 关键词召回、RRF 名次融合与证据页回补的全流程检索链路，兼顾语义召回与关键词精确匹配，提升检索召回率与答案可追溯性。
 
 ## 使用示例
 
@@ -18,7 +22,7 @@
 打开浏览器并访问百度
 搜索桌面的简历文件
 把简历发到我的邮箱
-将刚才找到的文档中“李栩威”改成“李威”，然后发给我
+将刚才找到的文档中“。。。。”改成“。。。”，然后发给我
 导入桌面上的论文 PDF
 搜索这篇论文的研究问题、技术方法和核心工作
 总结这篇论文并生成一份报告
@@ -257,21 +261,9 @@ cd main\desk-agent
 
 ## 常见问题
 
-### `ModuleNotFoundError: No module named 'core'`
-
-请先进入 `main/desk-agent` 再运行 `python -m core...` 命令，不要在仓库根目录直接执行后端模块。
-
-### `ImportError: cannot import name 'load_config'`
-
-确认使用的是 `main/desk-agent/.venv/Scripts/python.exe`，并从 `main/desk-agent` 启动。不要混用系统 Python、Conda 环境和项目虚拟环境。
-
 ### 飞书收到消息但无法回复
 
 查看启动日志中的“飞书回复通道”。OAuth 模式需要检查应用发布状态、消息权限和应用凭据；Webhook 模式需要检查 Webhook 地址、签名密钥以及机器人是否已加入目标群。
-
-### RAG 找不到论文核心内容
-
-确认论文已完成导入，并且当前查询绑定正确的 `paper_id`。查看日志中的 `translated_queries`、`profile_kept`、`keyword_chunks` 和 `recovered_chunks`。向量相似度偏低时，BM25 与证据页回补仍可能提供有效证据。
 
 ### 端口被占用
 
@@ -280,25 +272,3 @@ Get-NetTCPConnection -LocalPort 8000,8010,8006 -ErrorAction SilentlyContinue
 ```
 
 关闭旧服务后再启动，或修改私有配置中的端口。
-
-## 安全与发布
-
-发布前执行：
-
-```powershell
-git status --short
-git ls-files main/desk-agent/data
-```
-
-以下内容不能提交：
-
-- `main/desk-agent/data/.config.yaml`
-- API Key、飞书 App Secret、Webhook Secret、SMTP 授权码
-- SQLite 数据库、日志、个人论文、生成文档和 Chroma 数据
-- 本地虚拟环境和 ASR 模型权重
-
-如果密钥曾进入公开提交，仅删除文件不够，必须立即在对应平台撤销并重新生成。
-
-## 许可证
-
-项目基于 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 的服务端和数字人模块改造，保留原项目 MIT License 与版权声明。第三方模型、数字人素材和在线服务遵循各自许可证及服务条款。
