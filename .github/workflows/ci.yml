@@ -23,5 +23,4 @@ jobs:
       - name: Compile project modules
         run: python -m compileall -q core/agent core/rag plugins_func/functions api
       - name: Run tests
-        run: pytest -q
-
+        run: python -m pytest -q
