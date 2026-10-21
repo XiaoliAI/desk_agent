@@ -22,5 +22,7 @@ jobs:
         run: pip install -r requirements-ci.txt
       - name: Compile project modules
         run: python -m compileall -q core/agent core/rag plugins_func/functions api
+      - name: Create test configuration
+        run: cp config.example.yaml data/.config.yaml
       - name: Run tests
         run: python -m pytest -q
