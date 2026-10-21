@@ -1,5 +1,4 @@
-<img width="1902" height="905" alt="image" src="https://github.com/user-attachments/assets/e5254e8d-19b0-4d14-b1de-33b8a18b6828" /># Desk Agent
-
+<img width="1902" height="905" alt="image" src="https://github.com/user-attachments/assets/e5254e8d-19b0-4d14-b1de-33b8a18b6828" />
 一个能听懂你说话、能远程听你指挥、能直接接管你电脑的桌面智能体。项目面向个人电脑操作与远程办公场景，以 Python、LangChain、LangGraph、FastAPI、WebSocket、SQLite、MCP 与 PyMuPDF 为技术底座，统一接入数字人语音/文本、飞书远程指令与本地桌面工具，构建"感知—理解—决策—执行—回传"的完整智能闭环，实现自然语言驱动的跨端桌面任务自动化。
 
 
