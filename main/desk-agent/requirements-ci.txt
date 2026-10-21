@@ -1,7 +1,7 @@
 pytest==8.3.5
 PyYAML==6.0.3
 openai==2.8.1
-websockets==14.2
+websockets==17.2
 loguru==0.7.3
 opuslib_next==1.1.5
 requests==2.32.5
