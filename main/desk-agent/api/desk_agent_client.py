@@ -179,26 +179,13 @@ class AgentSession:
         return int(value) if value.isdigit() else _CHINESE_NUMBERS[value]
 
     def _normalize_selection(self, command: str) -> str:
-        """Turn a numbered file choice into an explicit agent command."""
-        if not self.selection_candidates:
-            return command
+        """Preserve numbered choices for the backend task router.
 
-        # Do not apply an old search result after a long idle period.
-        if time.monotonic() - self.selection_updated_at > 150:
-            self.selection_candidates = []
-            return command
-
-        index = self._selection_index(command)
-        if index is None or not 1 <= index <= len(self.selection_candidates):
-            return command
-
-        file_name = self.selection_candidates[index - 1]
-        self.selection_candidates = []
-
-        compact_command = str(command or "").replace(" ", "")
-        if "打开" in compact_command:
-            return f"打开文件 {file_name}"
-        return f"把文件 {file_name} 发送到我的邮箱"
+        The backend owns selection state in SQLite. Rewriting a number into
+        an email command here can send literature or document selections to
+        the wrong workflow, so the remote client must be transport-only.
+        """
+        return str(command or "").strip()
 
     def send(self, command: str) -> str:
         config = get_feishu_config()

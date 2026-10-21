@@ -6,8 +6,6 @@ Opus编码工具类
 import logging
 import traceback
 import numpy as np
-from opuslib_next import Encoder
-from opuslib_next import constants
 from typing import Optional, Callable, Any
 
 class OpusEncoderUtils:
@@ -38,6 +36,8 @@ class OpusEncoderUtils:
         self.buffer = np.array([], dtype=np.int16)
 
         try:
+            from opuslib_next import Encoder, constants
+
             # 创建Opus编码器
             self.encoder = Encoder(
                 sample_rate, channels, constants.APPLICATION_AUDIO  # 音频优化模式

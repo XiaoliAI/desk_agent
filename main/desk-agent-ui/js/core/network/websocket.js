@@ -126,10 +126,6 @@ export class WebSocketHandler {
             }
         } else if (message.type === 'llm') {
             log(`大模型回复: ${message.text}`, 'info');
-            // 使用新的聊天消息回调显示LLM回复
-            if (this.onChatMessage && message.text) {
-                this.onChatMessage(message.text, false);
-            }
 
             // 如果包含表情，更新sessionStatus表情并触发Live2D动作
             if (message.text && /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(message.text)) {
@@ -179,7 +175,9 @@ export class WebSocketHandler {
             this.ttsSentenceCount = (this.ttsSentenceCount || 0) + 1;
 
             if (message.text && this.onChatMessage) {
-                this.onChatMessage(message.text, false);
+                this.onChatMessage(message.text, false, {
+                    append: message.append === true
+                });
             }
 
             // 确保动画在句子开始时运行

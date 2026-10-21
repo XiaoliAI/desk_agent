@@ -11,7 +11,6 @@ import threading
 import traceback
 import subprocess
 import websockets
-import opuslib_next
 import numpy as np
 
 from core.utils.util import (
@@ -525,6 +524,8 @@ class ConnectionHandler:
     def _init_connection_state(self, conn):
         """为连接初始化独立的Opus解码器"""
         if not hasattr(conn, "_connection_opus_decoder"):
+            import opuslib_next
+
             conn._connection_opus_decoder = opuslib_next.Decoder(16000, 1)
 
     async def handle_restart(self, message):
@@ -1018,6 +1019,97 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
+    def _dispatch_task_followup(self, task_context, query):
+        """Dispatch a task continuation without asking the LLM to choose."""
+        task_type = task_context.task_type
+        self.logger.bind(tag=TAG).info(
+            "任务后续路由: owner={}, task_id={}, task_type={}, status={}",
+            task_context.task.get("owner_id", ""),
+            task_context.task_id[:8],
+            task_type,
+            task_context.status,
+        )
+
+        if task_type == LITERATURE_IMPORT_TASK_TYPE:
+            future = asyncio.run_coroutine_threadsafe(
+                continue_literature_import(self, query),
+                self.loop,
+            )
+            return future.result(
+                timeout=int(self.config.get("tool_call_timeout", 30))
+            )
+
+        if task_type == "edit_document_and_send":
+            graph_result = DocumentEditSendGraph(self).invoke(
+                {"mode": "continue", "query": query}
+            )
+            return graph_result.get("result") or None
+
+        if task_type == "send_file_email":
+            email_result = FileEmailGraph(self).invoke({"query": query})
+            return email_result.get("result") or None
+
+        self.logger.bind(tag=TAG).warning(
+            "未支持的任务后续类型: task_id={}, task_type={}",
+            task_context.task_id[:8],
+            task_type,
+        )
+        return f"任务类型 {task_type} 暂不支持继续处理。"
+
+    def _route_task_followup(self, query):
+        """Handle selection/confirmation/cancellation before Agent routing."""
+        intent_name = self.last_intent.name if self.last_intent else ""
+        if intent_name not in {"select_file", "confirm_task", "cancel_task"}:
+            return None
+
+        task_context = TaskContextManager(self)
+        if intent_name == "select_file":
+            candidates = task_context.get_waiting_selection_tasks()
+            if not candidates:
+                return "当前没有等待选择的任务，请先发起文件搜索或论文导入任务。"
+            # The repository returns active tasks by updated_at. Use the
+            # newest waiting-selection task as the current task so an old
+            # email task cannot capture a selection for a newer import.
+            current = candidates[0]
+            if len(candidates) > 1:
+                ignored = ", ".join(
+                    context.task_type for context in candidates[1:]
+                )
+                self.logger.bind(tag=TAG).info(
+                    "忽略旧的等待选择任务: current={}, ignored={}",
+                    current.task_type,
+                    ignored,
+                )
+            return self._dispatch_task_followup(current, query)
+
+        if intent_name == "confirm_task":
+            candidates = [
+                context
+                for context in task_context.list_active()
+                if context.status == "waiting_confirmation"
+            ]
+            if not candidates:
+                return "当前没有等待确认的任务。"
+        else:
+            candidates = [
+                context
+                for context in task_context.list_active()
+                if context.status in {
+                    "pending",
+                    "waiting_selection",
+                    "waiting_confirmation",
+                }
+            ]
+            if not candidates:
+                return "当前没有可以取消的任务。"
+
+        if len(candidates) > 1:
+            task_types = ", ".join(
+                context.task_type for context in candidates
+            )
+            return f"当前有多个任务，请先指定要处理的任务：{task_types}。"
+        return self._dispatch_task_followup(candidates[0], query)
+
     def chat(self, query, depth=0):
         # 保存当前任务的sentence_id到局部变量，避免被新任务覆盖
         current_sentence_id = None
@@ -1050,12 +1142,9 @@ class ConnectionHandler:
                     f"entities={self.last_intent.entities}, "
                     f"missing={self.last_intent.missing_fields}"
                 )
-            # 邮件任务的选择、确认、取消由确定性状态机处理，避免模型
-            # 把“1”或“确认发送”解释成普通聊天。
+            # 任务选择、确认、取消由确定性状态机处理，避免模型
+            # 把编号或确认词解释成普通聊天，或串到其他任务。
             if query:
-                # 只有确认、取消、编号选择属于已有邮件任务的后续操作。
-                # 新的编辑、搜索、天气等意图必须回到 Agent，不能被旧邮件任务拦截。
-                workflow_intents = {"confirm_task", "cancel_task", "select_file"}
                 workflow_response = None
                 if self.last_intent and self.last_intent.name == "edit_document_and_send":
                     graph_result = DocumentEditSendGraph(self).invoke(
@@ -1065,71 +1154,8 @@ class ConnectionHandler:
                         }
                     )
                     workflow_response = graph_result.get("result")
-                elif self.last_intent and self.last_intent.name == "select_file":
-                    # A selection must be routed by the active task type.
-                    # Never probe unrelated workflows in sequence, otherwise a
-                    # stale email task can capture a literature selection.
-                    task_context = TaskContextManager(self)
-                    selection_tasks = task_context.get_waiting_selection_tasks()
-                    if len(selection_tasks) > 1:
-                        task_types = ", ".join(
-                            context.task_type for context in selection_tasks
-                        )
-                        workflow_response = (
-                            "当前有多个任务等待选择文件："
-                            f"{task_types}。请先取消其中一个任务。"
-                        )
-                    elif len(selection_tasks) == 1:
-                        task_type = selection_tasks[0].task_type
-                        if task_type == LITERATURE_IMPORT_TASK_TYPE:
-                            future = asyncio.run_coroutine_threadsafe(
-                                continue_literature_import(self, query),
-                                self.loop,
-                            )
-                            workflow_response = future.result(
-                                timeout=int(self.config.get("tool_call_timeout", 30))
-                            )
-                        elif task_type == "edit_document_and_send":
-                            graph_result = DocumentEditSendGraph(self).invoke(
-                                {"mode": "continue", "query": query}
-                            )
-                            workflow_response = graph_result.get("result") or None
-                        elif task_type == "send_file_email":
-                            email_result = FileEmailGraph(self).invoke(
-                                {"query": query}
-                            )
-                            workflow_response = email_result.get("result") or None
-                elif self.last_intent and self.last_intent.name in workflow_intents:
-                    task_context = TaskContextManager(self)
-                    active_tasks = task_context.list_active()
-                    if len(active_tasks) > 1:
-                        task_types = ", ".join(
-                            context.task_type for context in active_tasks
-                        )
-                        workflow_response = (
-                            "当前有多个活动任务："
-                            f"{task_types}。请先指定要继续的任务。"
-                        )
-                    elif len(active_tasks) == 1:
-                        task_type = active_tasks[0].task_type
-                        if task_type == LITERATURE_IMPORT_TASK_TYPE:
-                            future = asyncio.run_coroutine_threadsafe(
-                                continue_literature_import(self, query),
-                                self.loop,
-                            )
-                            workflow_response = future.result(
-                                timeout=int(self.config.get("tool_call_timeout", 30))
-                            )
-                        elif task_type == "edit_document_and_send":
-                            graph_result = DocumentEditSendGraph(self).invoke(
-                                {"mode": "continue", "query": query}
-                            )
-                            workflow_response = graph_result.get("result") or None
-                        elif task_type == "send_file_email":
-                            email_result = FileEmailGraph(self).invoke(
-                                {"query": query}
-                            )
-                            workflow_response = email_result.get("result") or None
+                else:
+                    workflow_response = self._route_task_followup(query)
                 if workflow_response is not None:
                     self.tts.tts_one_sentence(
                         self,

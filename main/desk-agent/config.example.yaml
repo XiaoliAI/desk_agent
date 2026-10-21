@@ -20,6 +20,21 @@ LLM:
     max_tokens: 800
 
 plugins:
+  literature_embedding:
+    model_name: qwen3.7-text-embedding-flash
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    api_key: "YOUR_DASHSCOPE_API_KEY"
+
+  literature_retrieval:
+    min_similarity: 0.35
+    profile_min_similarity: 0.20
+    keyword_min_score: 0.10
+    candidate_k: 12
+    rrf_k: 60
+    duplicate_threshold: 0.90
+    max_context_chars: 9000
+    max_evidence_chars: 1800
+
   web_search:
     provider: metaso
     description: 联网搜索工具。当用户明确需要联网搜索时使用。
@@ -105,6 +120,12 @@ plugins:
     enabled: false
     app_id: "YOUR_FEISHU_APP_ID"
     app_secret: "YOUR_FEISHU_APP_SECRET"
+    # auto: 配置WebHook时优先使用，否则使用OAuth；也可指定webhook或oauth
+    reply_mode: auto
+    webhook_url: "YOUR_FEISHU_CUSTOM_BOT_WEBHOOK_URL"
+    webhook_secret: "YOUR_FEISHU_CUSTOM_BOT_SIGNING_SECRET"
+    webhook_mention_sender: true
+    oauth_scope: im:message:send_as_bot
     local_api_url: http://127.0.0.1:8010/command
     allowed_open_ids: []
     agent_websocket_url: ws://127.0.0.1:8000/xiaozhi/v1/
@@ -137,4 +158,3 @@ Intent:
 VAD:
   SileroVAD:
     min_silence_duration_ms: 900
-

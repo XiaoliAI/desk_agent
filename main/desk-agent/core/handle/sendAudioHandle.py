@@ -1,7 +1,6 @@
 import json
 import time
 import asyncio
-import opuslib_next
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,7 +22,8 @@ async def sendAudioMessage(conn: "ConnectionHandler", sentenceType, audios, text
     if sentence_id is not None and sentence_id != conn.sentence_id:
         return
 
-    if conn.tts.tts_audio_first_sentence:
+    is_first_response_segment = conn.tts.tts_audio_first_sentence
+    if is_first_response_segment:
         conn.logger.bind(tag=TAG).info(f"发送第一段语音: {text}")
         conn.tts.tts_audio_first_sentence = False
 
@@ -36,11 +36,21 @@ async def sendAudioMessage(conn: "ConnectionHandler", sentenceType, audios, text
             == conn.sentence_id
         ):
             conn.audio_rate_controller.add_message(
-                lambda: send_tts_message(conn, "sentence_start", text)
+                lambda: send_tts_message(
+                    conn,
+                    "sentence_start",
+                    text,
+                    append=not is_first_response_segment,
+                )
             )
         else:
             # 新句子或流控器未初始化，立即发送
-            await send_tts_message(conn, "sentence_start", text)
+            await send_tts_message(
+                conn,
+                "sentence_start",
+                text,
+                append=not is_first_response_segment,
+            )
 
     await sendAudio(conn, audios)
     # 发送句子开始消息
@@ -94,6 +104,8 @@ async def _send_to_mqtt_gateway(
         if not hasattr(conn, "aec_audio_cache"):
             conn.aec_audio_cache = {}
             conn.aec_audio_cache_time = {}
+            import opuslib_next
+
             conn._send_opus_decoder = opuslib_next.Decoder(16000, 1)
         # 解码opus为PCM后缓存
         pcm_data = conn._send_opus_decoder.decode(bytes(opus_packet), 960)
@@ -276,13 +288,15 @@ async def _do_send_audio(conn: "ConnectionHandler", opus_packet, flow_control):
     flow_control["sequence"] = sequence + 1
 
 
-async def send_tts_message(conn: "ConnectionHandler", state, text=None):
+async def send_tts_message(conn: "ConnectionHandler", state, text=None, append=False):
     """发送 TTS 状态消息"""
     if text is None and state == "sentence_start":
         return
     message = {"type": "tts", "state": state, "session_id": conn.session_id}
     if text is not None:
         message["text"] = textUtils.check_emoji(text)
+    if state == "sentence_start":
+        message["append"] = bool(append)
 
     # TTS播放结束
     if state == "stop":

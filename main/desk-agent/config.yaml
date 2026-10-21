@@ -130,6 +130,15 @@ context_providers:
 
 # 插件的基础配置
 plugins:
+  literature_retrieval:
+    min_similarity: 0.35
+    profile_min_similarity: 0.20
+    keyword_min_score: 0.10
+    candidate_k: 12
+    rrf_k: 60
+    duplicate_threshold: 0.90
+    max_context_chars: 9000
+    max_evidence_chars: 1800
   # 获取天气插件的配置，这里填写你的api_key
   # 这个密钥是项目共用的key，用多了可能会被限制
   # 想稳定一点就自行申请替换，每天有1000次免费调用

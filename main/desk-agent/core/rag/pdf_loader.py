@@ -11,6 +11,7 @@ from typing import Any
 
 from core.rag.chunker import build_page_chunks
 from core.rag.paper_profile import profile_text
+from core.rag.vector_store import ChromaVectorStore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 LITERATURE_ROOT = PROJECT_ROOT / "data" / "literature"
@@ -116,6 +117,7 @@ def import_pdf(
     path: Path,
     core_profile: dict[str, Any] | None = None,
     extracted: tuple[dict[str, Any], list[dict[str, Any]]] | None = None,
+    vector_store: ChromaVectorStore | None = None,
 ) -> dict[str, Any]:
     source = path.resolve()
     if not source.is_file():
@@ -168,23 +170,36 @@ def import_pdf(
     ]
     chunk_records = []
     for page in page_records:
-        chunk_records.extend(build_page_chunks(page))
+        page_chunks = build_page_chunks(page)
+        for chunk in page_chunks:
+            chunk["chunk_type"] = "page_chunk"
+            chunk["retrieval_priority"] = 1
+        chunk_records.extend(page_chunks)
 
+    profile_record = None
     if core_profile:
-        old_chunks.append(
-            {
-                "chunk_id": f"{paper['paper_id']}_profile",
-                "chunk_type": "paper_profile",
-                "retrieval_priority": 2,
-                "paper_id": paper["paper_id"],
-                "file_name": paper["file_name"],
-                "library_path": str(library_path),
-                "page": core_profile.get("evidence_pages", []),
-                "text": profile_text(core_profile),
-                "core_work": core_profile.get("core_work", ""),
-            }
-        )
+        profile_record = {
+            "chunk_id": f"{paper['paper_id']}_profile",
+            "chunk_type": "paper_profile",
+            "retrieval_priority": 2,
+            "paper_id": paper["paper_id"],
+            "file_name": paper["file_name"],
+            "library_path": str(library_path),
+            "page": core_profile.get("evidence_pages", []),
+            "text": profile_text(core_profile),
+            "core_work": core_profile.get("core_work", ""),
+        }
+        old_chunks.append(profile_record)
     old_chunks.extend(chunk_records)
+
+    vector_records = list(chunk_records)
+    if profile_record:
+        vector_records.append(profile_record)
+    store = vector_store or ChromaVectorStore()
+    vector_count = store.replace_paper_records(
+        paper["paper_id"],
+        vector_records,
+    )
 
     with CHUNKS_INDEX.open("w", encoding="utf-8") as stream:
         for record in old_chunks:
@@ -212,5 +227,6 @@ def import_pdf(
         "paper": paper,
         "page_count": len(pages),
         "chunk_count": len(chunk_records) + (1 if core_profile else 0),
+        "vector_count": vector_count,
         "text_chars": sum(len(page["text"]) for page in pages),
     }

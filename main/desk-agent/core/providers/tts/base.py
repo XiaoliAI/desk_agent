@@ -123,15 +123,10 @@ class TTSProviderBase(ABC):
     def to_tts_stream(self, text, opus_handler: Callable[[bytes], None] = None) -> None:
         # 保留原始文本用于显示/上报
         original_text = text
+        self.tts_audio_queue.put(
+            (SentenceType.FIRST, None, original_text, getattr(self, "current_sentence_id", None))
+        )
         if (getattr(self.conn, "features", None) or {}).get("text_only"):
-            self.tts_audio_queue.put(
-                (
-                    SentenceType.FIRST,
-                    None,
-                    original_text,
-                    getattr(self, "current_sentence_id", None),
-                )
-            )
             return None
 
         text = MarkdownCleaner.clean_markdown(text)
@@ -146,7 +141,6 @@ class TTSProviderBase(ABC):
                     audio_bytes = asyncio.run(self.text_to_speak(text, None))
                     if audio_bytes:
                         # 使用原始文本用于显示/上报
-                        self.tts_audio_queue.put((SentenceType.FIRST, None, original_text, getattr(self, 'current_sentence_id', None)))
                         audio_bytes_to_data_stream(
                             audio_bytes,
                             file_type=self.audio_file_type,
@@ -195,7 +189,6 @@ class TTSProviderBase(ABC):
                     logger.bind(tag=TAG).error(
                         f"语音生成失败: {original_text}，请检查网络或服务是否正常"
                     )
-                self.tts_audio_queue.put((SentenceType.FIRST, None, original_text, getattr(self, 'current_sentence_id', None)))
                 self._process_audio_file_stream(tmp_file, callback=opus_handler)
             except Exception as e:
                 logger.bind(tag=TAG).error(f"Failed to generate TTS file: {e}")

@@ -437,13 +437,35 @@ class UIController {
     }
 
     // Add chat message
-    addChatMessage(content, isUser = false) {
+    addChatMessage(content, isUser = false, options = {}) {
         const chatStream = document.getElementById('chatStream');
         if (!chatStream) return;
 
+        const normalizedContent = String(content ?? '').trim();
+        if (!normalizedContent) return;
+
+        if (options.append && !isUser) {
+            const lastMessage = chatStream.lastElementChild;
+            const lastBubble = lastMessage?.classList.contains('ai')
+                ? lastMessage.querySelector('.message-bubble')
+                : null;
+
+            if (lastBubble) {
+                if (lastBubble.dataset.lastFragment === normalizedContent) return;
+                lastBubble.appendChild(document.createTextNode(`\n${normalizedContent}`));
+                lastBubble.dataset.lastFragment = normalizedContent;
+                chatStream.scrollTop = chatStream.scrollHeight;
+                return;
+            }
+        }
+
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${isUser ? 'user' : 'ai'}`;
-        messageDiv.innerHTML = `<div class="message-bubble">${content}</div>`;
+        const messageBubble = document.createElement('div');
+        messageBubble.className = 'message-bubble';
+        messageBubble.textContent = normalizedContent;
+        messageBubble.dataset.lastFragment = normalizedContent;
+        messageDiv.appendChild(messageBubble);
         chatStream.appendChild(messageDiv);
 
         // Scroll to bottom
@@ -728,8 +750,8 @@ class UIController {
             };
 
             // Register chat message callback BEFORE connecting
-            wsHandler.onChatMessage = (text, isUser) => {
-                this.addChatMessage(text, isUser);
+            wsHandler.onChatMessage = (text, isUser, options = {}) => {
+                this.addChatMessage(text, isUser, options);
             };
 
             // Register record button state callback BEFORE connecting

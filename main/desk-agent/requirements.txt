@@ -6,14 +6,14 @@ numpy==1.26.4
 #--------- cozepy0.20.0要求websockets<15.0.0，以下暂时不推荐升级的依赖
 websockets==14.2
 #--------- 以下是可升级的依赖
-pyyml==0.0.2
+PyYAML==6.0.3
 silero_vad==6.1.0
 opuslib_next==1.1.5
 pydub==0.25.1
 funasr==1.2.7
 openai==2.8.1
 google-generativeai==0.8.5
-edge_tts==7.2.6
+edge_tts==7.3.1
 httpx==0.28.1
 aiohttp==3.13.2
 aiohttp_cors==0.8.1
@@ -42,6 +42,7 @@ portalocker==3.2.0
 Jinja2==3.1.6
 vosk==0.3.45
 langchain-core==1.6.3
+langsmith==0.4.60
 langchain-protocol==0.0.19
 langgraph==1.2.11
 langgraph-checkpoint==4.2.0
@@ -51,3 +52,5 @@ PyMuPDF==1.26.4
 fastapi==0.115.12
 uvicorn==0.34.0
 lark-oapi
+chromadb==0.5.23
+posthog<6.0.0

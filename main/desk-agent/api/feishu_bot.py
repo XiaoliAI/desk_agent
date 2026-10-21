@@ -2,14 +2,14 @@ import json
 import threading
 import time
 from typing import Any
-from uuid import NAMESPACE_URL, uuid5
 
 from api.desk_agent_client import send_agent_command
-import lark_oapi as lark
-from lark_oapi.api.im.v1 import (
-    ReplyMessageRequest,
-    ReplyMessageRequestBody,
+from api.feishu_api import reply_feishu_text as reply_feishu_text_with_oauth
+from api.feishu_webhook import (
+    is_webhook_configured,
+    send_feishu_webhook_text,
 )
+import lark_oapi as lark
 
 from api.config import (
     get_config_value,
@@ -31,6 +31,15 @@ APP_SECRET = get_config_value(
     "app_secret",
     "FEISHU_APP_SECRET",
 )
+REPLY_MODE = get_config_value(
+    FEISHU_CONFIG,
+    "reply_mode",
+    "FEISHU_REPLY_MODE",
+    "auto",
+).lower()
+WEBHOOK_MENTION_SENDER = bool(FEISHU_CONFIG.get("webhook_mention_sender", True))
+
+
 def get_allowed_open_ids() -> set[str]:
     configured = FEISHU_CONFIG.get("allowed_open_ids", [])
     if not isinstance(configured, list):
@@ -74,6 +83,13 @@ def get_sender_open_id(data: Any) -> str:
         return ""
 
 
+def get_sender_type(data: Any) -> str:
+    try:
+        return str(data.event.sender.sender_type or "").strip().lower()
+    except AttributeError:
+        return ""
+
+
 def get_message_id(data: Any) -> str:
     try:
         return str(data.event.message.message_id or "").strip()
@@ -102,41 +118,28 @@ def claim_message(message_id: str) -> bool:
         return True
 
 
-def reply_feishu_text(
-    client: lark.Client,
-    message_id: str,
-    text: str,
-):
-    content = json.dumps(
-        {"text": text},
-        ensure_ascii=False,
+def reply_agent_result(message_id: str, sender_open_id: str, result: str) -> None:
+    use_webhook = REPLY_MODE == "webhook" or (
+        REPLY_MODE == "auto" and is_webhook_configured()
     )
+    if use_webhook:
+        mention_open_id = sender_open_id if WEBHOOK_MENTION_SENDER else ""
+        send_feishu_webhook_text(result, mention_open_id=mention_open_id)
+        return
 
-    request = (
-        ReplyMessageRequest.builder()
-        .message_id(message_id)
-        .request_body(
-            ReplyMessageRequestBody.builder()
-            .msg_type("text")
-            .content(content)
-            .uuid(str(uuid5(NAMESPACE_URL, f"desk-agent:{message_id}")))
-            .build()
+    if REPLY_MODE not in {"auto", "oauth"}:
+        raise RuntimeError(
+            "feishu.reply_mode 仅支持 auto、webhook 或 oauth"
         )
-        .build()
-    )
-
-    response = client.im.v1.message.reply(request)
-    if not response.success():
-        print(
-            "飞书消息回复失败：",
-            response.code,
-            response.msg,
-        )
+    reply_feishu_text_with_oauth(message_id, result)
 
 
+def handle_message(data: Any) -> None:
+    sender_type = get_sender_type(data)
+    if sender_type and sender_type != "user":
+        print(f"忽略非用户飞书消息：sender_type={sender_type}")
+        return
 
-
-def handle_message(data: Any, client: lark.Client) -> None:
     sender_open_id = get_sender_open_id(data)
     message_id = get_message_id(data)
     allowed_open_ids = get_allowed_open_ids()
@@ -163,18 +166,25 @@ def handle_message(data: Any, client: lark.Client) -> None:
         print("飞书事件缺少message_id，无法回复")
         return
 
-    reply_feishu_text(client, message_id, result)
+    try:
+        reply_agent_result(message_id, sender_open_id, result)
+    except Exception as error:
+        print(f"飞书回复异常：{error}")
 
 
 def main():
     require_config()
-
-    client = (
-        lark.Client.builder()
-        .app_id(APP_ID)
-        .app_secret(APP_SECRET)
-        .build()
+    if REPLY_MODE == "webhook" and not is_webhook_configured():
+        raise RuntimeError(
+            "feishu.reply_mode=webhook，但 webhook_url 未配置"
+        )
+    active_reply_mode = (
+        "webhook"
+        if REPLY_MODE == "webhook"
+        or (REPLY_MODE == "auto" and is_webhook_configured())
+        else "oauth"
     )
+    print(f"飞书回复通道：{active_reply_mode}")
 
     def on_message_receive(data: Any) -> None:
         message_id = get_message_id(data)
@@ -184,7 +194,7 @@ def main():
 
         threading.Thread(
             target=handle_message,
-            args=(data, client),
+            args=(data,),
             daemon=True,
         ).start()
 

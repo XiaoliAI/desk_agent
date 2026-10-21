@@ -10,7 +10,6 @@ import shutil
 import requests
 import subprocess
 import numpy as np
-import opuslib_next
 from io import BytesIO
 from pathlib import Path
 from core.utils import p3
@@ -312,6 +311,8 @@ async def audio_to_data(
         raw_data = audio.raw_data
 
         # 初始化Opus编码器
+        import opuslib_next
+
         encoder = opuslib_next.Encoder(16000, 1, opuslib_next.APPLICATION_AUDIO)
 
         # 编码参数
@@ -383,6 +384,8 @@ def pcm_to_data_stream(raw_data, is_opus=True, callback: Callable[[Any], Any] = 
     """
     using_temp_encoder = False
     if is_opus and opus_encoder is None:
+        import opuslib_next
+
         encoder = opuslib_next.Encoder(sample_rate, 1, opuslib_next.APPLICATION_AUDIO)
         using_temp_encoder = True
 
@@ -419,6 +422,8 @@ def opus_datas_to_wav_bytes(opus_datas, sample_rate=16000, channels=1):
     """
     将opus帧列表解码为wav字节流
     """
+    import opuslib_next
+
     decoder = opuslib_next.Decoder(sample_rate, channels)
     try:
         pcm_datas = []

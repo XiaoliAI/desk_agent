@@ -347,7 +347,9 @@ class IntentRouter:
     def _is_file_selection(text: str) -> bool:
         return bool(
             re.fullmatch(
-                r"(?:选择|发送)?(?:第\s*)?[1-9](?:个|项|号|个文件)?",
+                r"(?:我)?(?:选择|选|发送)?(?:了)?(?:第\s*)?"
+                r"(?:[1-9]|[一二三四五六七八九])"
+                r"(?:个|项|号|个文件)?",
                 text,
             )
         )

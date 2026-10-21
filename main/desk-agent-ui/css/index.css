@@ -320,6 +320,7 @@ body {
     font-size: 14px;
     max-width: 250px;
     word-wrap: break-word;
+    white-space: pre-wrap;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     animation: fadeIn 0.3s ease-out;

@@ -95,6 +95,8 @@ def test_confirm_cancel_and_selection():
     assert router.classify_fast("确认发送").name == "confirm_task"
     assert router.classify_fast("取消发送").name == "cancel_task"
     assert router.classify_fast("选择第2个").name == "select_file"
+    assert router.classify_fast("我选择了1").name == "select_file"
+    assert router.classify_fast("选第一个").name == "select_file"
 
 
 def test_chat_falls_through():
